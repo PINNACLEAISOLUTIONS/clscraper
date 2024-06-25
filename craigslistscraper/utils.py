@@ -1,5 +1,6 @@
 from urllib.parse import quote
 import json
+import csv
 import os
 
 from typing import List
@@ -7,6 +8,14 @@ from typing import Dict
 
 # Get the directory of the current file agnositc of library location.
 cs_dir = os.path.dirname(os.path.abspath(__file__))
+
+
+def get_us_cities() -> List[str]:
+    path = os.path.join(cs_dir, "data/us_cities.csv")
+    with open(path, "r") as file:
+        reader = csv.reader(file)
+        cities = [city[0] for city in reader]
+    return cities
 
 
 def format_price(price: str) -> float:

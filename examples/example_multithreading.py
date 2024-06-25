@@ -29,7 +29,7 @@ def worker_thread(search: cs.Search) -> None:
     """The function that will do work (including fetching) for each search."""
     status = search.fetch() # Fetch the html data.
     if status != 200:
-        print(f"Unable to fetch search at city {city} with status <{status}>.")
+        print(f"Unable to fetch search at city {search.city} with status <{status}>.")
         return
 
     print(f"Number of ads found at {search.city}: {len(search.ads)}")

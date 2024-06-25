@@ -89,8 +89,11 @@ class AdParser:
         return self.soup.find("meta", property = "og:url")["content"] 
 
     @property
-    def price(self) -> float:
-        return format_price(self.soup.find("span", class_ = "price").text)
+    def price(self) -> Optional[float]:
+        element = self.soup.find("span", class_ = "price")
+        if element is not None:
+            return format_price(element.text)
+        return element
 
     @property
     def title(self) -> str:

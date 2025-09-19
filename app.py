@@ -17,9 +17,9 @@ st.set_page_config(
 # Add custom CSS for better styling
 st.markdown("""
 <style>
-    /* Ma                                     <img src="{details['image_urls'][0] if details and details.get('image_urls') else 'https://via.placeholder.com/80'}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">n app background */
+    /* Main app background */
     .stApp {
-        background: linear-gradient(135deg, #f0f2f5 0%, #d6e0f0 100%);
+        background: linear-gradient(135deg, #181825 0%, #232946 100%);
     }
 
     /* Main header with a new font and shadow */

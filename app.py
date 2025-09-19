@@ -7,8 +7,8 @@ from datetime import datetime
 
 # Configure page
 st.set_page_config(
-    page_title="CraigslistScraper - Search Craigslist Easily",
-    page_icon="🔍",
+    page_title="Pinnacle AI Solutions Craigslist Scraper",
+    page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -51,21 +51,60 @@ st.markdown("""
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
-def search_craigslist(query, city, category, filters=None):
+def search_craigslist(query, location, location_type, category, sort_by=None, filters=None):
     """Cached function to search Craigslist"""
-    try:
-        search = cs.Search(query=query, city=city, category=category)
-        status = search.fetch(params=filters)
-        
-        if status == 200:
-            return search.ads, status, None
-        else:
-            return [], status, f"Search failed with status {status}"
-    except Exception as e:
-        return [], 500, str(e)
+    if location_type == "State":
+        # This is a simplified example. You'd need to load areas.json and find all cities.
+        # For now, we'll just show a message.
+        st.info(f"State-wide search for '{location}' is not fully implemented yet. Searching in a sample city.")
+        # In a real implementation, you would get a list of cities for the state
+        # and loop through them, aggregating the results.
+        cities_in_state = get_cities_for_state(location)
+        all_ads = []
+        for city in cities_in_state:
+            try:
+                search = cs.Search(query=query, city=city, category=category, sort_by=sort_by)
+                status = search.fetch(params=filters)
+                if status == 200:
+                    all_ads.extend(search.ads)
+            except Exception:
+                # Silently fail for now, or add logging
+                pass
+        return all_ads, 200, None
+
+    else: # City search
+        try:
+            search = cs.Search(query=query, city=location, category=category, sort_by=sort_by)
+            status = search.fetch(params=filters)
+            
+            if status == 200:
+                return search.ads, status, None
+            else:
+                return [], status, f"Search failed with status {status}"
+        except Exception as e:
+            return [], 500, str(e)
+
+def get_cities_for_state(state_abbr):
+    """
+    Reads the areas.json file and returns a list of city hostnames for a given state.
+    """
+    import json
+    # This should be cached in a real app
+    with open('craigslistscraper/data/areas.json', 'r') as f:
+        areas = json.load(f)
+    
+    cities = [area['Hostname'] for area in areas if area.get('Region', '').lower() == state_abbr.lower()]
+    return list(set(cities)) # Return unique cities
+
 
 
 @st.cache_data(ttl=600)  # Cache for 10 minutes
+        # City selection with popular cities first
+        popular_cities = ["newyork", "losangeles", "chicago", "houston", "phoenix", "philadelphia"]
+        other_cities = [
+            "sanantonio", "sandiego", "dallas", "sanjose", "austin", "jacksonville",
+            "fortworth", "columbus", "charlotte", "sanfrancisco", "indianapolis",
+            "seattle", "denver", "boston", "elpaso", "detroit", "nashvill
 def get_ad_details(ad_url):
     """Cached function to get ad details"""
     try:
@@ -81,7 +120,7 @@ def get_ad_details(ad_url):
 
 def main():
     # Header
-    st.markdown('<h1 class="main-header">🔍 CraigslistScraper</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">PINNACLE AI SOLUTIONS CRAIGSLIST SCRAPER</h1>', unsafe_allow_html=True)
     st.markdown('<p style="text-align: center; color: #666; font-size: 18px;">Search Craigslist listings from across the United States with ease!</p>', unsafe_allow_html=True)
     
     # Sidebar
@@ -94,28 +133,43 @@ def main():
         help="Enter what you're looking for"
     )
     
-    # City selection with popular cities first
-    popular_cities = ["newyork", "losangeles", "chicago", "houston", "phoenix", "philadelphia"]
-    other_cities = [
-        "sanantonio", "sandiego", "dallas", "sanjose", "austin", "jacksonville",
-        "fortworth", "columbus", "charlotte", "sanfrancisco", "indianapolis",
-        "seattle", "denver", "boston", "elpaso", "detroit", "nashville",
-        "portland", "oklahomacity", "lasvegas", "memphis", "louisville",
-        "baltimore", "milwaukee", "albuquerque", "tucson", "fresno", "mesa",
-        "sacramento", "atlanta", "kansascity", "colorado", "omaha", "raleigh",
-        "miami", "longbeach", "virginiabeach", "oakland", "minneapolis",
-        "tulsa", "arlington", "neworleans", "wichita", "cleveland", "tampa",
-        "bakersfield", "aurora", "anaheim", "honolulu"
-    ]
-    
-    all_cities = popular_cities + other_cities
-    
+    # Location selection
     city = st.sidebar.selectbox(
         "🏙️ City",
-        all_cities,
+        [""] + popular_cities + other_cities,
         help="Select the city to search in"
     )
+
+    us_states = [
+        "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
+        "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
+        "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana",
+        "maine", "maryland", "massachusetts", "michigan", "minnesota",
+        "mississippi", "missouri", "montana", "nebraska", "nevada",
+        "newhampshire", "newjersey", "newmexico", "newyork", "northcarolina",
+        "northdakota", "ohio", "oklahoma", "oregon", "pennsylvania",
+        "rhodeisland", "southcarolina", "southdakota", "tennessee", "texas",
+        "utah", "vermont", "virginia", "washington", "westvirginia",
+        "wisconsin", "wyoming"
+    ]
+    state = st.sidebar.selectbox(
+        "🇺🇸 State",
+        [""] + us_states,
+        help="Select the state to search in"
+    )
     
+    if city and state:
+        st.sidebar.warning("Please select either a city or a state, not both.")
+        st.stop()
+
+    location = city if city else state
+    location_type = "City" if city else "State"
+    
+    search_type = st.sidebar.radio(
+        "Select Search Type",
+        ('For Sale', 'Services', 'Jobs')
+    )
+
     # Category selection
     category_options = {
         "for": "🛍️ For Sale (General)",
@@ -129,19 +183,99 @@ def main():
         "mcy": "🏍️ Motorcycles",
         "rvs": "🚐 RVs",
         "pts": "🔧 Car Parts",
+        "atq": "🏺 Antiques - By Owner",
+        "atd": "🏺 Antiques - By Dealer",
+        "tls": "🛠️ Tools - By Owner",
+        "tld": "🛠️ Tools - By Dealer",
         "wan": "❓ Wanted",
-        "zip": "🆓 Free Stuff"
+        "zip": "🆓 Free Stuff",
     }
-    
-    category = st.sidebar.selectbox(
-        "📂 Category",
-        list(category_options.keys()),
-        format_func=lambda x: category_options[x],
-        help="Choose the category that best matches your search"
-    )
+
+    service_options = {
+        "biz": "💼 Small Biz Ads",
+        "cps": "💻 Computer Services",
+        "crs": "🎨 Creative Services",
+        "evs": "🎉 Event Services",
+        "hss": "🏡 Household Services",
+        "lss": "🎓 Lessons & Tutoring",
+        "lbs": "🚚 Labor / Hauling / Moving",
+        "sks": "🛠️ Skilled Trade Services",
+        "lgs": "⚖️ Legal Services",
+        "fns": "💰 Financial Services",
+        "rts": "🏘️ Real Estate Services",
+        "aos": "🚗 Automotive Services",
+        "bts": "💅 Beauty Services",
+        "wet": "✍️ Writing / Editing / Translation",
+        "trv": "✈️ Travel/Vacation Services",
+        "fgs": "🌿 Farm & Garden Services",
+        "pas": "🐾 Pet Services",
+        "mas": "⚓ Marine Services",
+        "cys": "🚲 Cycle Services",
+        "cms": "📱 Cell Phone / Mobile Services",
+        "hws": "🌿 Health/Wellness Services"
+    }
+
+    job_options = {
+        "web": "🌐 Web/HTML/Info Design",
+        "bus": "📈 Business/Mgmt",
+        "mar": "📢 Marketing/Advertising/PR",
+        "etc": " miscellaneous",
+        "wri": "✍️ Writing/Editing",
+        "sof": "💻 Software/QA/DBA/etc",
+        "acc": "💰 Accounting/Finance",
+        "ofc": "📄 Admin/Office",
+        "med": "🎨 Art/Media/Design",
+        "hea": "⚕️ Healthcare",
+        "ret": "🛒 Retail/Wholesale",
+        "npo": "🤝 Nonprofit",
+        "lgl": "⚖️ Legal/Paralegal",
+        "egr": "🏗️ Architect/Engineer/CAD",
+        "sls": "💲 Sales",
+        "sad": "💻 Systems/Networking",
+        "tfr": "🎬 TV/Film/Video/Radio",
+        "hum": "👥 Human Resource",
+        "tch": "👨‍🏫 Technical Support",
+        "edu": "🎓 Education/Teaching",
+        "trd": "🛠️ Skilled Trades/Artisan",
+        "gov": "🏛️ Government",
+        "trp": "🚚 Transportation",
+        "spa": "💆 Salon/Spa/Fitness",
+        "rej": "🏘️ Real Estate",
+        "mnu": "🏭 Manufacturing",
+        "fbh": "🍔 Food/Beverage/Hospitality",
+        "lab": "👷 General Labor",
+        "sec": "🛡️ Security"
+    }
+
+    if search_type == 'For Sale':
+        category = st.sidebar.selectbox(
+            "📂 Category",
+            list(category_options.keys()),
+            format_func=lambda x: category_options[x],
+            help="Choose the category that best matches your search"
+        )
+    elif search_type == 'Services':
+        category = st.sidebar.selectbox(
+            "📂 Category",
+            list(service_options.keys()),
+            format_func=lambda x: service_options[x],
+            help="Choose the service category"
+        )
+    else: # Jobs
+        category = st.sidebar.selectbox(
+            "📂 Category",
+            list(job_options.keys()),
+            format_func=lambda x: job_options[x],
+            help="Choose the job category"
+        )
     
     # Advanced filters in an expander
     with st.sidebar.expander("🎛️ Advanced Filters"):
+        sort_by = st.selectbox(
+            "Sort by",
+            [("date (newest)", "date"), ("price (ascending)", "priceasc"), ("price (descending)", "pricedsc")],
+            format_func=lambda x: x[0]
+        )[1]
         max_price = st.number_input(
             "💰 Max Price ($)",
             min_value=0,
@@ -219,10 +353,10 @@ def main():
             filters["bundleDuplicates"] = 1
         
         # Search progress
-        with st.spinner(f"🔍 Searching for '{query}' in {city.title()}..."):
+        with st.spinner(f"🔍 Searching for '{query}' in {location.title()}..."):
             start_time = time.time()
             ads, status, error = search_craigslist(
-                query, city, category, filters if filters else None
+                query, location, category, sort_by=sort_by, filters=filters if filters else None
             )
             search_time = time.time() - start_time
         
@@ -237,7 +371,7 @@ def main():
         with col1:
             st.metric("📊 Results Found", num_ads)
         with col2:
-            st.metric("🏙️ City", city.title())
+            st.metric("🏙️ Location", location.title())
         with col3:
             st.metric("📂 Category", category.upper())
         with col4:
@@ -331,7 +465,7 @@ def main():
             st.download_button(
                 label="📥 Download Results as CSV",
                 data=csv,
-                file_name=f"craigslist_{query}_{city}_{timestamp}.csv",
+                file_name=f"craigslist_{query}_{location}_{timestamp}.csv",
                 mime="text/csv"
             )
         

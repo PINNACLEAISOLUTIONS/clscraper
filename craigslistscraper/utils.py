@@ -22,8 +22,11 @@ def format_price(price: str) -> float:
     return float(price.replace("$", "").replace(",", ""))
 
 
-def build_url(query: str, city: str, category: str = "sss") -> str:
-    return f"https://{city}.craigslist.org/search/{category}?query={quote(query)}"
+def build_url(query: str, city: str, category: str = "sss", sort_by: str = None) -> str:
+    url = f"https://{city}.craigslist.org/search/{category}?query={quote(query)}"
+    if sort_by:
+        url += f"&sort={sort_by}"
+    return url
 
 
 def get_areas() -> List[Dict]:

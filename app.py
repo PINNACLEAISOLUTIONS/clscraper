@@ -136,9 +136,19 @@ def get_ad_details(ad_url: str) -> tuple[dict | None, int, str]:
 
 
 
-
-
-
+@st.cache_data(ttl=3600)
+def get_all_cities() -> list:
+    """Efficiently reads and caches all city hostnames."""
+    import json
+    try:
+        with open('craigslistscraper/data/areas.json', 'r') as f:
+            areas = json.load(f)
+        # Use a set for uniqueness and then sort for consistent ordering
+        cities = sorted(list(set(area['Hostname'] for area in areas)))
+        return cities
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        st.error(f"Error loading city data: {e}")
+        return []
 
 
 def main():
@@ -177,16 +187,10 @@ def main():
                 st.sidebar.info(f"Did you mean: **{corrected_query}**?")
 
     # Location selection
-    # City selection with popular cities first
-    popular_cities = ["newyork", "losangeles", "chicago", "houston", "phoenix", "philadelphia"]
-    other_cities = [
-        "sanantonio", "sandiego", "dallas", "sanjose", "austin", "jacksonville",
-        "fortworth", "columbus", "charlotte", "sanfrancisco", "indianapolis",
-        "seattle", "denver", "boston", "elpaso", "detroit", "nashville"
-    ]
+    all_cities = get_all_cities()
     city = st.sidebar.selectbox(
         "🏙️ City",
-        [""] + popular_cities + other_cities,
+        [""] + all_cities,
         help="Select the city to search in"
     )
 

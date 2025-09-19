@@ -412,25 +412,19 @@ def main():
                     # Fetch details first to get image URL
                     details, detail_status, detail_error = get_ad_details(ad.url)
                     
-                    st.markdown(f"""
-                    <div class="ad-container">
-                        <table style="width: 100%; border: none;">
-                            <tr>
-                                <td style="width: 80px; vertical-align: top; padding-right: 15px;">
-                                    <img src="{details.get('image_urls', ['https://via.placeholder.com/80'])[0] if details and details.get('image_urls') else 'https://via.placeholder.com/80'}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">
-                                </td>
-                                <td style="vertical-align: top;">
-                                    <h5 style="margin: 0; color: #2c3e50;">{ad.title}</h5>
-                                    <p style="margin: 5px 0; color: #27ae60; font-weight: bold;">
-                                        {f"${ad.price:,.0f}" if ad.price else "Price not listed"}
-                                    </p>
-                                    <a href="{ad.url}" target="_blank" style="text-decoration: none; color: #2980b9;">View on Craigslist</a>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    col1, col2 = st.columns([1, 4])
                     
+                    with col1:
+                        image_url = "https://via.placeholder.com/150"
+                        if details and details.get("image_urls"):
+                            image_url = details["image_urls"][0]
+                        st.image(image_url, width=150)
+
+                    with col2:
+                        st.subheader(ad.title)
+                        st.markdown(f"**Price:** {f'${ad.price:,.0f}' if ad.price else 'N/A'}")
+                        st.markdown(f'[View on Craigslist]({ad.url})')
+
                     with st.expander("More Info & Details"):
                         if details:
                             st.json(details)

@@ -313,33 +313,11 @@ def main():
         """)
     
     # Main content
-    if not search_button:
-        # Welcome screen
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown("""
-            ### 🚀 Welcome to CraigslistScraper!
-            
-            **How to get started:**
-            
-            1. 🔍 Enter your search query in the sidebar
-            2. 🏙️ Select a city to search in
-            3. 📂 Choose the appropriate category
-            4. 🎛️ Optionally set filters for better results
-            5. 🔍 Click "Search Craigslist" to find listings
-            
-            ### 🌟 Features:
-            - **Multi-city search**: Browse listings from 50+ US cities
-            - **Smart filtering**: Filter by price, posting date, and more
-            - **Export data**: Download results as CSV for analysis
-            - **Detailed views**: Get complete information about listings
-            - **Fast & reliable**: Cached results for better performance
-            
-            ### 📊 Popular Searches:
-            Try searching for: `honda civic`, `iphone`, `apartment`, `bicycle`, `furniture`
-            """)
-    
-    elif query:
+    if search_button:
+        if not location:
+            st.sidebar.error("Please select a city or a state to search in.")
+            st.stop()
+
         # Prepare filters
         filters = {}
         if max_price > 0:
@@ -354,7 +332,8 @@ def main():
             filters["bundleDuplicates"] = 1
         
         # Search progress
-        with st.spinner(f"🔍 Searching for '{query}' in {location.title()}..."):
+        search_description = f"'{query}'" if query else "all listings"
+        with st.spinner(f"🔍 Searching for {search_description} in {location.title()}..."):
             start_time = time.time()
             ads, status, error = search_craigslist(
                 query, location, location_type, category, sort_by=sort_by, filters=filters or None
@@ -444,15 +423,15 @@ def main():
             # Display options
             col1, col2 = st.columns(2)
             with col1:
-                sort_by = st.selectbox("Sort by:", ["Title", "Price", "Price_Display"])
+                sort_by_col = st.selectbox("Sort by:", ["Title", "Price", "Price_Display"])
             with col2:
                 ascending = st.checkbox("Ascending order", value=True)
             
             # Sort and display
-            if sort_by == "Price":
+            if sort_by_col == "Price":
                 df_display = df.sort_values("Price", ascending=ascending)
             else:
-                df_display = df.sort_values(sort_by, ascending=ascending)
+                df_display = df.sort_values(sort_by_col, ascending=ascending)
             
             # Show table without internal Price column
             display_df = df_display[["Title", "Price_Display", "URL"]].rename(
@@ -466,7 +445,7 @@ def main():
             st.download_button(
                 label="📥 Download Results as CSV",
                 data=csv,
-                file_name=f"craigslist_{query}_{location}_{timestamp}.csv",
+                file_name=f"craigslist_{query or 'all'}_{location}_{timestamp}.csv",
                 mime="text/csv"
             )
         
@@ -503,9 +482,31 @@ def main():
             }
             stats_df = pd.DataFrame(stats_data)
             st.bar_chart(stats_df.set_index("Category"))
-    
     else:
-        st.warning("🔍 Please enter a search query to get started!")
+        # Welcome screen
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown("""
+            ### 🚀 Welcome to CraigslistScraper!
+            
+            **How to get started:**
+            
+            1. 🔍 Enter your search query in the sidebar (or leave blank to browse a category)
+            2. 🏙️ Select a city or state to search in
+            3. 📂 Choose the appropriate category
+            4. 🎛️ Optionally set filters for better results
+            5. 🔍 Click "Search Craigslist" to find listings
+            
+            ### 🌟 Features:
+            - **Multi-city & State-wide search**: Browse listings from 50+ US cities or entire states
+            - **Smart filtering**: Filter by price, posting date, and more
+            - **Export data**: Download results as CSV for analysis
+            - **Detailed views**: Get complete information about listings
+            - **Fast & reliable**: Cached results for better performance
+            
+            ### 📊 Popular Searches:
+            Try searching for: `honda civic`, `iphone`, `apartment`, `bicycle`, `furniture`
+            """)
     
     # Footer
     st.markdown("---")

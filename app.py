@@ -3,6 +3,7 @@ import craigslistscraper as cs
 import pandas as pd
 import time
 from datetime import datetime
+from spellchecker import SpellChecker
 
 
 # Configure page
@@ -16,100 +17,128 @@ st.set_page_config(
 # Add custom CSS for better styling
 st.markdown("""
 <style>
+    /* Ma                                     <img src="{details['image_urls'][0] if details and details.get('image_urls') else 'https://via.placeholder.com/80'}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">n app background */
+    .stApp {
+        background: linear-gradient(135deg, #f0f2f5 0%, #d6e0f0 100%);
+    }
+
+    /* Main header with a new font and shadow */
     .main-header {
+        font-family: 'Arial Black', Gadget, sans-serif;
         text-align: center;
-        color: #1f77b4;
+        color: #1e3a8a; /* Dark Blue */
+        text-shadow: 2px 2px 5px #cccccc;
         margin-bottom: 30px;
     }
+
+    /* Sidebar styling with a new gradient */
+    .css-1d391kg { /* This is a common class for the sidebar */
+        background: linear-gradient(180deg, #e0c3fc 0%, #8ec5fc 100%);
+        border-right: 2px solid #ffffff;
+    }
+
+    /* Primary button with a vibrant gradient */
     .stButton > button {
         width: 100%;
-        background-color: #1f77b4;
+        background-image: linear-gradient(to right, #ff8177 0%, #ff867a 0%, #ff8c7f 21%, #f99185 52%, #cf556c 78%, #b12a5b 100%);
         color: white;
         border: none;
-        border-radius: 10px;
-        padding: 10px 20px;
+        border-radius: 12px;
+        padding: 12px 24px;
         font-weight: bold;
+        box-shadow: 0 4px 15px 0 rgba(252, 102, 117, 0.75);
+        transition: all 0.3s ease;
     }
     .stButton > button:hover {
-        background-color: #0d5aa7;
+        background-image: linear-gradient(to right, #b12a5b 0%, #cf556c 22%, #f99185 48%, #ff8c7f 78%, #ff867a 100%);
+        box-shadow: 0 2px 10px 0 rgba(252, 102, 117, 0.75);
     }
+
+    /* Ad container with a new border color */
     .ad-container {
-        background-color: #f0f2f6;
-        padding: 15px;
-        border-radius: 10px;
-        margin: 10px 0;
-        border-left: 4px solid #1f77b4;
-    }
-    .metric-card {
-        background-color: white;
+        background-color: rgba(255, 255, 255, 0.95);
         padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 15px;
+        margin: 15px 0;
+        border-left: 5px solid #ff8177; /* Vibrant pink/red */
+        box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .ad-container:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+    }
+
+    /* Metric cards with a fresh look */
+    .stMetric {
+        background-color: #ffffff;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border-top: 5px solid #8ec5fc; /* Light Blue */
+    }
+
+    /* Styling for tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 24px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: transparent;
+        border-radius: 8px 8px 0 0;
+        border-bottom: 2px solid #eee;
+        padding: 10px;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #ffffff;
+        border-bottom: 2px solid #ff8177;
+        font-weight: bold;
     }
 </style>
 """, unsafe_allow_html=True)
 
 
-@st.cache_data(ttl=300)  # Cache for 5 minutes
-def search_craigslist(query, location, location_type, category, sort_by=None, filters=None):
-    """Cached function to search Craigslist"""
-    if location_type == "State":
-        # This is a simplified example. You'd need to load areas.json and find all cities.
-        # For now, we'll just show a message.
-        st.info(f"State-wide search for '{location}' is not fully implemented yet. Searching in a sample city.")
-        # In a real implementation, you would get a list of cities for the state
-        # and loop through them, aggregating the results.
-        cities_in_state = get_cities_for_state(location)
-        all_ads = []
-        for city in cities_in_state:
-            try:
-                search = cs.Search(query=query, city=city, category=category)
-                status = search.fetch(sort_by=sort_by, params=filters)
-                if status == 200:
-                    all_ads.extend(search.ads)
-            except Exception:
-                # Silently fail for now, or add logging
-                pass
-        return all_ads, 200, None
+@st.cache_data(ttl=300)
+def search_craigslist(
+    query: str,
+    location: str,
+    category: str,
+    sort_by: str = "date",
+    filters: dict | None = None
+) -> tuple[list, int, str | None]:
+    """Searches Craigslist for a given city."""
+    try:
+        search = cs.Search(query=query, city=location, category=category)
+        status = search.fetch(sort_by=sort_by, params=filters)
+        if status == 200:
+            return search.ads, status, None
+        else:
+            return [], status, f"Search failed with status {status}"
 
-    else: # City search
-        try:
-            search = cs.Search(query=query, city=location, category=category)
-            status = search.fetch(sort_by=sort_by, params=filters)
-            
-            if status == 200:
-                return search.ads, status, None
-            else:
-                return [], status, f"Search failed with status {status}"
-        except Exception as e:
-            return [], 500, str(e)
-
-def get_cities_for_state(state_abbr):
-    """
-    Reads the areas.json file and returns a list of city hostnames for a given state.
-    """
-    import json
-    # This should be cached in a real app
-    with open('craigslistscraper/data/areas.json', 'r') as f:
-        areas = json.load(f)
-    
-    cities = [area['Hostname'] for area in areas if area.get('Region', '').lower() == state_abbr.lower()]
-    return list(set(cities)) # Return unique cities
+    except Exception as e:
+        return [], 500, f"An unexpected error occurred: {e}"
 
 
 
-@st.cache_data(ttl=600)  # Cache for 10 minutes
-def get_ad_details(ad_url):
-    """Cached function to get ad details"""
+@st.cache_data(ttl=600)
+def get_ad_details(ad_url: str) -> tuple[dict | None, int, str]:
+    """Fetches and caches ad details, handling errors gracefully."""
     try:
         ad = cs.Ad(url=ad_url)
         status = ad.fetch()
         if status == 200:
             return ad.to_dict(), status, None
         else:
-            return None, status, "Failed to fetch ad details"
+            return None, status, f"Failed to fetch ad details: Status code {status}"
     except Exception as e:
-        return None, 500, str(e)
+        return None, 500, f"An unexpected error occurred: {e}"
+
+
+
+
+
+
 
 
 def main():
@@ -127,6 +156,26 @@ def main():
         help="Enter what you're looking for"
     )
     
+    # Spell check the query
+    if query:
+        spell = SpellChecker()
+        # Split query into words to check each one
+        words = query.split()
+        misspelled = spell.unknown(words)
+        
+        if misspelled:
+            corrected_words = []
+            for word in words:
+                # Get the best correction
+                correction = spell.correction(word)
+                corrected_words.append(correction if correction is not None else word)
+
+            corrected_query = " ".join(corrected_words)
+            
+            # Show a suggestion if the correction is different
+            if corrected_query.lower() != query.lower():
+                st.sidebar.info(f"Did you mean: **{corrected_query}**?")
+
     # Location selection
     # City selection with popular cities first
     popular_cities = ["newyork", "losangeles", "chicago", "houston", "phoenix", "philadelphia"]
@@ -141,30 +190,8 @@ def main():
         help="Select the city to search in"
     )
 
-    us_states = [
-        "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
-        "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
-        "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana",
-        "maine", "maryland", "massachusetts", "michigan", "minnesota",
-        "mississippi", "missouri", "montana", "nebraska", "nevada",
-        "newhampshire", "newjersey", "newmexico", "newyork", "northcarolina",
-        "northdakota", "ohio", "oklahoma", "oregon", "pennsylvania",
-        "rhodeisland", "southcarolina", "southdakota", "tennessee", "texas",
-        "utah", "vermont", "virginia", "washington", "westvirginia",
-        "wisconsin", "wyoming"
-    ]
-    state = st.sidebar.selectbox(
-        "🇺🇸 State",
-        [""] + us_states,
-        help="Select the state to search in"
-    )
+    location = city
     
-    if city and state:
-        st.sidebar.warning("Please select either a city or a state, not both.")
-        st.stop()
-
-    location = city if city else state
-    location_type = "City" if city else "State"
     
     search_type = st.sidebar.radio(
         "Select Search Type",
@@ -318,25 +345,23 @@ def main():
             st.sidebar.error("Please select a city or a state to search in.")
             st.stop()
 
-        # Prepare filters
-        filters = {}
-        if max_price > 0:
-            filters["max_price"] = max_price
-        if min_price > 0:
-            filters["min_price"] = min_price
-        if posted_today:
-            filters["postedToday"] = 1
-        if has_image:
-            filters["hasPic"] = 1
-        if bundle_duplicates:
-            filters["bundleDuplicates"] = 1
-        
+        # Prepare filters using dictionary comprehension for conciseness and readability
+        filters = {
+            "max_price": max_price if max_price > 0 else None,
+            "min_price": min_price if min_price > 0 else None,
+            "postedToday": 1 if posted_today else None,
+            "hasPic": 1 if has_image else None,
+            "bundleDuplicates": 1 if bundle_duplicates else None,
+        }
+        # Remove None values from the filters dictionary
+        filters = {k: v for k, v in filters.items() if v is not None}
+
         # Search progress
         search_description = f"'{query}'" if query else "all listings"
         with st.spinner(f"🔍 Searching for {search_description} in {location.title()}..."):
             start_time = time.time()
             ads, status, error = search_craigslist(
-                query, location, location_type, category, sort_by=sort_by, filters=filters or None
+                query, location, category, sort_by=sort_by, filters=filters or None
             )
             search_time = time.time() - start_time
         
@@ -384,26 +409,33 @@ def main():
             # Display ads
             for i, ad in enumerate(page_ads):
                 with st.container():
-                    col1, col2 = st.columns([3, 1])
+                    # Fetch details first to get image URL
+                    details, detail_status, detail_error = get_ad_details(ad.url)
                     
-                    with col1:
-                        st.markdown(f"**{ad.title}**")
-                        if ad.price:
-                            st.markdown(f"💰 **${ad.price:,.0f}**")
+                    st.markdown(f"""
+                    <div class="ad-container">
+                        <table style="width: 100%; border: none;">
+                            <tr>
+                                <td style="width: 80px; vertical-align: top; padding-right: 15px;">
+                                    <img src="{details.get('image_urls', ['https://via.placeholder.com/80'])[0] if details and details.get('image_urls') else 'https://via.placeholder.com/80'}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">
+                                </td>
+                                <td style="vertical-align: top;">
+                                    <h5 style="margin: 0; color: #2c3e50;">{ad.title}</h5>
+                                    <p style="margin: 5px 0; color: #27ae60; font-weight: bold;">
+                                        {f"${ad.price:,.0f}" if ad.price else "Price not listed"}
+                                    </p>
+                                    <a href="{ad.url}" target="_blank" style="text-decoration: none; color: #2980b9;">View on Craigslist</a>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    with st.expander("More Info & Details"):
+                        if details:
+                            st.json(details)
                         else:
-                            st.markdown("💰 *Price not listed*")
-                        st.markdown(f"🔗 [View on Craigslist]({ad.url})")
-                    
-                    with col2:
-                        if st.button(f"📄 Get Details", key=f"detail_{i}"):
-                            with st.spinner("Fetching details..."):
-                                details, detail_status, detail_error = get_ad_details(ad.url)
-                                if details:
-                                    st.json(details)
-                                else:
-                                    st.error(f"❌ {detail_error}")
-                    
-                    st.divider()
+                            st.error(f"❌ Could not fetch details: {detail_error}")
         
         with tab2:
             st.subheader("📊 Results Table")

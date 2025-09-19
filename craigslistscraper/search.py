@@ -1,41 +1,32 @@
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 import requests
 import re
-
-from typing import Union
-from typing import List
-from typing import Dict
+from typing import Union, List, Dict, Optional
 
 from .ad import Ad
-from .utils import format_price
-from .utils import build_url
+from .utils import format_price, build_url
 
 
 class Search:
     def __init__(self, query: str, city: str, category: str = "sss") -> None:
         """An abstraction for a Craigslist 'Search'. Similar to the 'Ad' this is
         also lazy and follows the same layout with the `fetch()` and `to_dict()`
-        methods. 
-
+        methods.
         """
         self.query = query
         self.city = city
         self.category = category
-        
         self.url = build_url(self.query, self.city, self.category)
         self.ads: List[Ad] = []
 
-    def fetch(self, sort_by: str = None, **kwargs) -> int: 
-        # Build the final URL with optional sort_by
+    def fetch(self, sort_by: Optional[str] = None, **kwargs) -> int:
         final_url = self.url
         if sort_by:
             final_url += f"&sort={sort_by}"
-            
         self.request = requests.get(final_url, **kwargs)
         if self.request.status_code == 200:
             parser = SearchParser(self.request.content)
             self.ads = parser.ads
-
         return self.request.status_code
 
     def to_dict(self) -> Dict:
@@ -44,13 +35,13 @@ class Search:
             "city": self.city,
             "category": self.category,
             "url": self.url,
-            "ads": [ad.to_dict() for ad in self.ads]
+            "ads": [ad.to_dict() for ad in self.ads],
         }
 
 
 def fetch_search(query: str, city: str, category: str = "sss", **kwargs) -> Search:
     """Functional implementation of a Craigslist search."""
-    search = Search(query = query, city = city, category = category)
+    search = Search(query=query, city=city, category=category)
     search.fetch(**kwargs)
     return search
 
@@ -61,22 +52,28 @@ class SearchParser:
 
     @property
     def ads(self) -> List[Ad]:
-        ads = []
-        for ad_html in self.soup.find_all("li", class_ = "cl-static-search-result"):
-            url = ad_html.find("a")["href"]
-            title = ad_html.find(class_ = "title").text
-            price = format_price(ad_html.find(class_ = "price").text)
-            d_pid = int(re.search(r"/(\d+)\.html", url).group(1))
+        ads: List[Ad] = []
+        for ad_html in self.soup.find_all("li", class_="cl-static-search-result"):
+            if not isinstance(ad_html, Tag):
+                continue  # Skip if not a Tag object
 
-            ads.append(
-                Ad(
-                    url = url,
-                    title = title,
-                    price = price,
-                    d_pid = d_pid
+            try:
+                a_tag = ad_html.find("a")
+                if a_tag is None:
+                    continue  # Skip if no 'a' tag is found
+
+                url = a_tag["href"]
+                title = ad_html.find(class_="title").text
+                price_element = ad_html.find(class_="price")
+                price = format_price(price_element.text) if price_element else None
+                d_pid_match = re.search(r"/(\d+)\.html", url)
+                d_pid = int(d_pid_match.group(1)) if d_pid_match else None
+
+                ads.append(
+                    Ad(url=url, title=title, price=price, d_pid=d_pid)
                 )
-            )
+            except (AttributeError, TypeError, KeyError, ValueError) as e:
+                print(f"Error parsing ad: {e}")
+                continue
 
         return ads
-
-

@@ -6,15 +6,16 @@
 ago that broke the previous version of this library. The recent updates to
 this library address these changes. That said, it also involved a complete
 refactor of the library, and the new version 1.1.1 is not backwards compatible
-with the previous version 1.0.1. 
+with the previous version 1.0.1.
 
-CraigslistScraper is a lightweight tool for scraping Craigslist. Users can define 
+CraigslistScraper is a lightweight tool for scraping Craigslist. Users can define
 what they would like to search for, then CraigslistScraper can fetch and parse data
-from both searches and individual ads. 
+from both searches and individual ads.
 
-There are no official docs, but the code-base is ~200 lines of code and is documented. 
+There are no official docs, but the code-base is ~200 lines of code and is documented.
 
 <!-- TABLE OF CONTENTS -->
+
 Table of Contents
 =================
 
@@ -23,41 +24,43 @@ Table of Contents
 * [Analyzing](#analyzing)
 * [License](#license)
 
-
 <!-- INSTALLATION -->
+
 ## Installation
 
-To install the package just run: 
+To install the package just run:
 
 ```
 pip install craigslistscraper
-``` 
+```
 
-The only requirements are Python 3.7+, and the `requests` and `beautifulsoup4` libraries. 
-
+The only requirements are Python 3.7+, and the `requests` and `beautifulsoup4` libraries.
 
 <!-- USAGE -->
+
 ## Usage
 
 CraigslistScraper is built around 6 functions/classes for flexibility. These
-functions/classes are listed below. 
+functions/classes are listed below.
 
-For general searches: 
- - Search
- - SearchParser
- - fetch_search
+For general searches:
+
+- Search
+- SearchParser
+- fetch_search
 
 For single ads/posts:
- - Ad
- - AdParser
- - fetch_ad
+
+- Ad
+- AdParser
+- fetch_ad
 
 SearchParser and AdParser are BeautifulSoup-like abstractions for extracting certain
 fields from the html data received from Craigslist. Developers may find this useful.
 
 Search and Ad are classes that lazily fetch data from user-defined searches and
 ads. To define a search you need at least a query and city, and to define an ad you
-need at least a url. Examples are provied below and in the `examples/` folder. 
+need at least a url. Examples are provied below and in the `examples/` folder.
 
 fetch_search() and fetch_ad() are eager and functional implementations that return a
 Search and Ad.
@@ -98,7 +101,6 @@ for ad in search.ads:
 
 ```
 
-
 ## Analyzing
 
 Data can easily be converted to your json, csv, etc. and used in various
@@ -118,11 +120,8 @@ This data can then be analyzed, some examples include:
   <img src="img/price_odometer_screenshot.png" alt="CSV Example" width="95%">
 </p>
 
-
 <!-- LICENSE -->
+
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
-
-
-

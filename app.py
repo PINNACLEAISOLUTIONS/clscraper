@@ -63,8 +63,8 @@ def search_craigslist(query, location, location_type, category, sort_by=None, fi
         all_ads = []
         for city in cities_in_state:
             try:
-                search = cs.Search(query=query, city=city, category=category, sort_by=sort_by)
-                status = search.fetch(params=filters)
+                search = cs.Search(query=query, city=city, category=category)
+                status = search.fetch(sort_by=sort_by, params=filters)
                 if status == 200:
                     all_ads.extend(search.ads)
             except Exception:
@@ -74,8 +74,8 @@ def search_craigslist(query, location, location_type, category, sort_by=None, fi
 
     else: # City search
         try:
-            search = cs.Search(query=query, city=location, category=category, sort_by=sort_by)
-            status = search.fetch(params=filters)
+            search = cs.Search(query=query, city=location, category=category)
+            status = search.fetch(sort_by=sort_by, params=filters)
             
             if status == 200:
                 return search.ads, status, None

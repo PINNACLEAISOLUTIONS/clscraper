@@ -12,7 +12,7 @@ from .utils import build_url
 
 
 class Search:
-    def __init__(self, query: str, city: str, category: str = "sss", sort_by: str = None) -> None:
+    def __init__(self, query: str, city: str, category: str = "sss") -> None:
         """An abstraction for a Craigslist 'Search'. Similar to the 'Ad' this is
         also lazy and follows the same layout with the `fetch()` and `to_dict()`
         methods. 
@@ -21,13 +21,17 @@ class Search:
         self.query = query
         self.city = city
         self.category = category
-        self.sort_by = sort_by
-
-        self.url = build_url(self.query, self.city, self.category, self.sort_by)
+        
+        self.url = build_url(self.query, self.city, self.category)
         self.ads: List[Ad] = []
 
-    def fetch(self, **kwargs) -> int: 
-        self.request = requests.get(self.url, **kwargs)
+    def fetch(self, sort_by: str = None, **kwargs) -> int: 
+        # Build the final URL with optional sort_by
+        final_url = self.url
+        if sort_by:
+            final_url += f"&sort={sort_by}"
+            
+        self.request = requests.get(final_url, **kwargs)
         if self.request.status_code == 200:
             parser = SearchParser(self.request.content)
             self.ads = parser.ads

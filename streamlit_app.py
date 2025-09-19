@@ -150,7 +150,8 @@ def main():
                                         if detail_status == 200:
                                             st.json(ad.to_dict())
                                         else:
-                                            st.error(f"Details fetch failed (Status: {detail_status})")
+                                            st.error(f"Details fetch failed ({detail_status})")
+
 
                             
                             st.divider()
@@ -164,7 +165,8 @@ def main():
                     for ad in search.ads[:50]:  # Limit to 50 for performance
                         ads_data.append({
                             "Title": ad.title,
-                            "Price": f"${ad.price:,.0f}" if ad.price else "N/A" ,
+                            "Price": f"${ad.price:,.0f}" if ad.price else "N/A",
+
 
                             "URL": ad.url
                         })
@@ -194,12 +196,14 @@ def main():
                     async def display_ad_details(ads):
                         detailed_ads = [await ad_data for ad_data in asyncio.as_completed([fetch_ad_details(ad) for ad in ads])]
                         detailed_ads = [ad for ad in detailed_ads if ad is not None]
+
                         if detailed_ads:
                             for i, ad_data in enumerate(detailed_ads):
-                                with st.expander(f"Ad {i+1}: {ad_data.get('title', 'No title')}"):
+                                with st.expander(f"Ad {i+1}: {ad_data.get('title', '')}"):
                                     st.json(ad_data)
+
                         else:
-                            st.warning("Could not fetch detailed information for ads")
+                            st.warning("Could not fetch ad details.")
 
                     if search and search.ads:
                         with st.spinner("Fetching ad details..."):

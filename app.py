@@ -99,12 +99,6 @@ def get_cities_for_state(state_abbr):
 
 
 @st.cache_data(ttl=600)  # Cache for 10 minutes
-        # City selection with popular cities first
-        popular_cities = ["newyork", "losangeles", "chicago", "houston", "phoenix", "philadelphia"]
-        other_cities = [
-            "sanantonio", "sandiego", "dallas", "sanjose", "austin", "jacksonville",
-            "fortworth", "columbus", "charlotte", "sanfrancisco", "indianapolis",
-            "seattle", "denver", "boston", "elpaso", "detroit", "nashvill
 def get_ad_details(ad_url):
     """Cached function to get ad details"""
     try:
@@ -113,7 +107,7 @@ def get_ad_details(ad_url):
         if status == 200:
             return ad.to_dict(), status, None
         else:
-            return None, status, f"Failed to fetch ad details"
+            return None, status, "Failed to fetch ad details"
     except Exception as e:
         return None, 500, str(e)
 
@@ -134,6 +128,13 @@ def main():
     )
     
     # Location selection
+    # City selection with popular cities first
+    popular_cities = ["newyork", "losangeles", "chicago", "houston", "phoenix", "philadelphia"]
+    other_cities = [
+        "sanantonio", "sandiego", "dallas", "sanjose", "austin", "jacksonville",
+        "fortworth", "columbus", "charlotte", "sanfrancisco", "indianapolis",
+        "seattle", "denver", "boston", "elpaso", "detroit", "nashville"
+    ]
     city = st.sidebar.selectbox(
         "🏙️ City",
         [""] + popular_cities + other_cities,
@@ -356,7 +357,7 @@ def main():
         with st.spinner(f"🔍 Searching for '{query}' in {location.title()}..."):
             start_time = time.time()
             ads, status, error = search_craigslist(
-                query, location, category, sort_by=sort_by, filters=filters if filters else None
+                query, location, location_type, category, sort_by=sort_by, filters=filters or None
             )
             search_time = time.time() - start_time
         

@@ -107,9 +107,13 @@ def search_craigslist(
     sort_by: str = "date",
     filters: dict | None = None
 ) -> tuple[list, int, str | None]:
-    """Searches Craigslist for a given city."""
+    """Searches Craigslist for a given city or state."""
     try:
-        search = cs.Search(query=query, city=location, category=category)
+        if len(location) == 2:  # Assume 2-letter code is a state
+            search = cs.Search(query=query, state=location, category=category)
+        else:
+            search = cs.Search(query=query, city=location, category=category)
+            
         status = search.fetch(sort_by=sort_by, params=filters)
         if status == 200:
             return search.ads, status, None
@@ -151,6 +155,49 @@ def get_all_cities() -> list:
         return []
 
 
+@st.cache_data(ttl=3600)
+def get_all_states() -> list:
+    """Efficiently reads and caches all state abbreviations."""
+    import json
+    try:
+        with open('craigslistscraper/data/areas.json', 'r') as f:
+            areas = json.load(f)
+        # Use a set for uniqueness and then sort for consistent ordering
+        states = sorted(list(set(area['State'] for area in areas)))
+        return states
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        st.error(f"Error loading state data: {e}")
+        return []
+
+
+@st.cache_data(ttl=3600)
+def get_all_categories():
+    """Efficiently reads and caches all categories from JSON."""
+    import json
+    try:
+        with open('craigslistscraper/data/categories.json', 'r') as f:
+            all_categories = json.load(f)
+        
+        # Create dictionaries for each category type
+        sale_categories = {
+            cat['Abbreviation']: f"🛍️ {cat['Description'].title()}" 
+            for cat in all_categories if cat['Type'] in ['S', 'H'] # For Sale and Housing
+        }
+        service_categories = {
+            cat['Abbreviation']: f"💼 {cat['Description'].title()}" 
+            for cat in all_categories if cat['Type'] == 'B' # Services
+        }
+        job_categories = {
+            cat['Abbreviation']: f"📈 {cat['Description'].title()}" 
+            for cat in all_categories if cat['Type'] == 'J' # Jobs
+        }
+        
+        return sale_categories, service_categories, job_categories
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        st.error(f"Error loading category data: {e}")
+        return {}, {}, {}
+
+
 def main():
     # Header
     st.markdown('<h1 class="main-header">PINNACLE AI SOLUTIONS CRAIGSLIST SCRAPER</h1>', unsafe_allow_html=True)
@@ -188,116 +235,54 @@ def main():
 
     # Location selection
     all_cities = get_all_cities()
+    all_states = get_all_states()
+
     city = st.sidebar.selectbox(
         "🏙️ City",
         [""] + all_cities,
-        help="Select the city to search in"
+        help="Select the city to search in. Leave blank to search by state."
     )
 
-    location = city
-    
+    state = st.sidebar.selectbox(
+        "🇺🇸 State",
+        [""] + all_states,
+        help="Select a state to search the entire state. This will override city selection."
+    )
+
+    location = ""
+    if state:
+        location = state
+        st.sidebar.info(f"Searching statewide in {state.upper()}. City selection is ignored.")
+    elif city:
+        location = city
     
     search_type = st.sidebar.radio(
         "Select Search Type",
         ('For Sale', 'Services', 'Jobs')
     )
 
-    # Category selection
-    category_options = {
-        "for": "🛍️ For Sale (General)",
-        "cto": "🚗 Cars & Trucks - By Owner",
-        "ctd": "🏪 Cars & Trucks - By Dealer",
-        "apa": "🏠 Apartments for Rent",
-        "mob": "📱 Mobile Phones",
-        "ele": "🔌 Electronics",
-        "boa": "⛵ Boats",
-        "bik": "🚴 Bicycles",
-        "mcy": "🏍️ Motorcycles",
-        "rvs": "🚐 RVs",
-        "pts": "🔧 Car Parts",
-        "atq": "🏺 Antiques - By Owner",
-        "atd": "🏺 Antiques - By Dealer",
-        "tls": "🛠️ Tools - By Owner",
-        "tld": "🛠️ Tools - By Dealer",
-        "wan": "❓ Wanted",
-        "zip": "🆓 Free Stuff",
-    }
-
-    service_options = {
-        "biz": "💼 Small Biz Ads",
-        "cps": "💻 Computer Services",
-        "crs": "🎨 Creative Services",
-        "evs": "🎉 Event Services",
-        "hss": "🏡 Household Services",
-        "lss": "🎓 Lessons & Tutoring",
-        "lbs": "🚚 Labor / Hauling / Moving",
-        "sks": "🛠️ Skilled Trade Services",
-        "lgs": "⚖️ Legal Services",
-        "fns": "💰 Financial Services",
-        "rts": "🏘️ Real Estate Services",
-        "aos": "🚗 Automotive Services",
-        "bts": "💅 Beauty Services",
-        "wet": "✍️ Writing / Editing / Translation",
-        "trv": "✈️ Travel/Vacation Services",
-        "fgs": "🌿 Farm & Garden Services",
-        "pas": "🐾 Pet Services",
-        "mas": "⚓ Marine Services",
-        "cys": "🚲 Cycle Services",
-        "cms": "📱 Cell Phone / Mobile Services",
-        "hws": "🌿 Health/Wellness Services"
-    }
-
-    job_options = {
-        "web": "🌐 Web/HTML/Info Design",
-        "bus": "📈 Business/Mgmt",
-        "mar": "📢 Marketing/Advertising/PR",
-        "etc": " miscellaneous",
-        "wri": "✍️ Writing/Editing",
-        "sof": "💻 Software/QA/DBA/etc",
-        "acc": "💰 Accounting/Finance",
-        "ofc": "📄 Admin/Office",
-        "med": "🎨 Art/Media/Design",
-        "hea": "⚕️ Healthcare",
-        "ret": "🛒 Retail/Wholesale",
-        "npo": "🤝 Nonprofit",
-        "lgl": "⚖️ Legal/Paralegal",
-        "egr": "🏗️ Architect/Engineer/CAD",
-        "sls": "💲 Sales",
-        "sad": "💻 Systems/Networking",
-        "tfr": "🎬 TV/Film/Video/Radio",
-        "hum": "👥 Human Resource",
-        "tch": "👨‍🏫 Technical Support",
-        "edu": "🎓 Education/Teaching",
-        "trd": "🛠️ Skilled Trades/Artisan",
-        "gov": "🏛️ Government",
-        "trp": "🚚 Transportation",
-        "spa": "💆 Salon/Spa/Fitness",
-        "rej": "🏘️ Real Estate",
-        "mnu": "🏭 Manufacturing",
-        "fbh": "🍔 Food/Beverage/Hospitality",
-        "lab": "👷 General Labor",
-        "sec": "🛡️ Security"
-    }
+    # Dynamically load categories
+    category_options, service_options, job_options = get_all_categories()
 
     if search_type == 'For Sale':
         category = st.sidebar.selectbox(
             "📂 Category",
             list(category_options.keys()),
-            format_func=lambda x: category_options[x],
+            format_func=lambda x: category_options.get(x) or "",
             help="Choose the category that best matches your search"
         )
     elif search_type == 'Services':
         category = st.sidebar.selectbox(
             "📂 Category",
             list(service_options.keys()),
-            format_func=lambda x: service_options[x],
+            format_func=lambda x: service_options.get(x) or "",
             help="Choose the service category"
         )
     else: # Jobs
         category = st.sidebar.selectbox(
             "📂 Category",
             list(job_options.keys()),
-            format_func=lambda x: job_options[x],
+            format_func=lambda x: job_options.get(x) or "",
             help="Choose the job category"
         )
     

@@ -179,52 +179,170 @@ def load_all_categories() -> dict[str, dict[str, str]]:
     try:
         with open("craigslistscraper/data/categories.json", "r") as f:
             all_categories = json.load(f)
-        categories = {}
+        
+        categories = {"S": {}, "H": {}, "B": {}, "J": {}}
+        
         for cat in all_categories:
+            cat_type = cat["Type"]
             emoji = ""
-            if cat["Type"] in ["S", "H"]:
+            if cat_type in ["S", "H"]:
                 emoji = "🛍️"
-            elif cat["Type"] == "B":
+            elif cat_type == "B":
                 emoji = "💼"
-            elif cat["Type"] == "J":
+            elif cat_type == "J":
                 emoji = "📈"
-            categories[cat["Type"]] = {cat["Abbreviation"]: f"{emoji} {cat['Description'].title()}"}
+            
+            if cat_type not in categories:
+                categories[cat_type] = {}
+            
+            categories[cat_type][cat["Abbreviation"]] = f"{emoji} {cat['Description'].title()}"
+        
         return categories
     except (FileNotFoundError, json.JSONDecodeError) as e:
         st.error(f"Error loading category data: {e}")
-        return {}
+        return {"S": {}, "H": {}, "B": {}, "J": {}}
 
 
 
 def main():
-    # ... (Existing code for header, sidebar, and search inputs remains unchanged) ...
+    # Header
+    st.markdown('<h1 class="main-header">PINNACLE AI SOLUTIONS CRAIGSLIST SCRAPER</h1>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align: center; color: #666; font-size: 18px;">Search Craigslist listings from across the United States with ease!</p>', unsafe_allow_html=True)
+    
+    # Sidebar
+    st.sidebar.header("🔧 Search Configuration")
+    
+    # Search inputs
+    query = st.sidebar.text_input(
+        "🔍 Search Query",
+        placeholder="e.g., honda civic, iphone 15, apartment",
+        help="Enter what you're looking for"
+    )
+    
+    # Spell check the query
+    if query:
+        spell = SpellChecker()
+        words = query.split()
+        misspelled = spell.unknown(words)
+        
+        if misspelled:
+            corrected_words = []
+            for word in words:
+                correction = spell.correction(word)
+                corrected_words.append(correction if correction is not None else word)
 
-    # Location selection (remains unchanged)
+            corrected_query = " ".join(corrected_words)
+            
+            if corrected_query.lower() != query.lower():
+                st.sidebar.info(f"Did you mean: **{corrected_query}**?")
 
-    # Search type selection (remains unchanged)
+    # Location selection
+    all_cities = load_all_cities()
+    all_states = load_all_states()
 
-    # Category selection (refactored below)
+    city = st.sidebar.selectbox(
+        "🏙️ City",
+        [""] + all_cities,
+        help="Select the city to search in. Leave blank to search by state."
+    )
+
+    state = st.sidebar.selectbox(
+        "🇺🇸 State",
+        [""] + all_states,
+        help="Select a state to search the entire state. This will override city selection."
+    )
+
+    location = ""
+    if state:
+        location = state
+        st.sidebar.info(f"Searching statewide in {state.upper()}. City selection is ignored.")
+    elif city:
+        location = city
+
+    # Category selection
     all_categories = load_all_categories()
-    selected_category_type = st.sidebar.radio(
+    
+    # Create separate category lists
+    sale_categories = {}
+    service_categories = {}
+    job_categories = {}
+    
+    for cat_type, cats in all_categories.items():
+        if cat_type in ['S', 'H']:
+            sale_categories.update(cats)
+        elif cat_type == 'B':
+            service_categories.update(cats)
+        elif cat_type == 'J':
+            job_categories.update(cats)
+    
+    search_type = st.sidebar.radio(
         "Select Search Type",
-        list(all_categories.keys()),
-    )
-    category_options = all_categories.get(selected_category_type, {})
-    category = st.sidebar.selectbox(
-        "📂 Category",
-        list(category_options.keys()),
-        format_func=lambda x: category_options.get(x) or "",
-        help="Choose the category that best matches your search",
+        ('For Sale', 'Services', 'Jobs')
     )
 
-    # Advanced filters (remains unchanged)
-    # Add this line for the bundle duplicates option in the sidebar
-    bundle_duplicates = st.sidebar.checkbox("Bundle Duplicates", value=False, help="Show only unique listings (hide duplicates)")
+    if search_type == 'For Sale':
+        category = st.sidebar.selectbox(
+            "📂 Category",
+            list(sale_categories.keys()),
+            format_func=lambda x: sale_categories.get(x) or "",
+            help="Choose the category that best matches your search"
+        )
+    elif search_type == 'Services':
+        category = st.sidebar.selectbox(
+            "📂 Category",
+            list(service_categories.keys()),
+            format_func=lambda x: service_categories.get(x) or "",
+            help="Choose the service category"
+        )
+    else:  # Jobs
+        category = st.sidebar.selectbox(
+            "📂 Category",
+            list(job_categories.keys()),
+            format_func=lambda x: job_categories.get(x) or "",
+            help="Choose the job category"
+        )
 
-    # Search button (remains unchanged)
-    search_button = st.sidebar.button("🔍 Search Craigslist", use_container_width=True)
+    # Advanced filters in an expander
+    with st.sidebar.expander("🎛️ Advanced Filters"):
+        sort_by = st.selectbox(
+            "Sort by",
+            [("date (newest)", "date"), ("price (ascending)", "priceasc"), ("price (descending)", "pricedsc")],
+            format_func=lambda x: x[0]
+        )[1]
+        max_price = st.number_input(
+            "💰 Max Price ($)",
+            min_value=0,
+            value=0,
+            step=100,
+            help="0 = no limit"
+        )
+        min_price = st.number_input(
+            "💰 Min Price ($)",
+            min_value=0,
+            value=0,
+            step=100,
+            help="0 = no limit"
+        )
+        posted_today = st.checkbox("📅 Posted Today Only")
+        has_image = st.checkbox("🖼️ Has Image")
+        bundle_duplicates = st.checkbox("📦 Bundle Duplicates", value=True)
 
-    # About section (remains unchanged)
+    # Search button
+    search_button = st.sidebar.button("🔍 Search Craigslist", type="primary")
+
+    # Info about the app
+    with st.sidebar.expander("ℹ️ About"):
+        st.markdown("""
+        **CraigslistScraper** helps you search Craigslist listings efficiently.
+        
+        🚀 **Features:**
+        - Search multiple cities and states
+        - Filter by price, date, images
+        - Export results to CSV
+        - Get detailed ad information
+        
+        ⚠️ **Note:** This tool is for personal use only.
+        """)
 
     # Main content (modified below)
     if search_button:
@@ -374,10 +492,39 @@ def main():
             stats_df = pd.DataFrame(stats_data)
             st.bar_chart(stats_df.set_index("Category"))
     else:
-        # Welcome screen (remains unchanged)
-        pass
+        # Welcome screen
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown("""
+            ### 🚀 Welcome to CraigslistScraper!
+            
+            **How to get started:**
+            
+            1. 🔍 Enter your search query in the sidebar (or leave blank to browse a category)
+            2. 🏙️ Select a city or state to search in
+            3. 📂 Choose the appropriate category
+            4. 🎛️ Optionally set filters for better results
+            5. 🔍 Click "Search Craigslist" to find listings
+            
+            ### 🌟 Features:
+            - **Multi-city & State-wide search**: Browse listings from cities or entire states
+            - **Smart filtering**: Filter by price, posting date, and more
+            - **Export data**: Download results as CSV for analysis
+            - **Detailed views**: Get complete information about listings
+            - **Fast & reliable**: Cached results for better performance
+            
+            ### 📊 Popular Searches:
+            Try searching for: `honda civic`, `iphone`, `apartment`, `bicycle`, `furniture`
+            """)
 
-    # Footer (remains unchanged)
+    # Footer
+    st.markdown("---")
+    st.markdown(
+        "<p style='text-align: center; color: #666;'>"
+        "🔍 CraigslistScraper | Built with Streamlit | For personal use only"
+        "</p>",
+        unsafe_allow_html=True
+    )
 
 
 if __name__ == "__main__":
